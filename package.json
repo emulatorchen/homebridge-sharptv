@@ -1,4 +1,4 @@
-  {
+{
   "name": "homebridge-sharptv",
   "version": "0.0.1",
   "description": "Sharp TV plugin for Homebridge: https://github.com/nfarina/homebridge",
@@ -11,12 +11,23 @@
     "homebridge": ">=0.2.0"
   },
   "author": {
-    "name": "Reece Dantin"
+    "name": "Emulator"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/reecedantin/homebridge-sharptv.git"
   },
-  "dependencies": {
+  "scripts": {
+    "test-one": "mocha $1",
+    "test": "mocha -R list ./test/**/test*.js"
+  },
+  "devDependencies": {
+    "chai": "4",
+    "eslint": "latest",
+    "eslint-config-airbnb-base": "^14",
+    "eslint-plugin-import": "^2.22",
+    "mocha": "8",
+    "rewire": "5",
+    "sinon": "9"
   }
 }

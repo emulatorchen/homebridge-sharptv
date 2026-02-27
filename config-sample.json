@@ -12,6 +12,8 @@
     {
       "accessory": "SharpTV",
       "name": "Sharp TV",
+      "username": "TVUserName",
+      "password": "TVPassword",
       "on": "POWR1   ",
       "off": "POWR0   ",
       "state": "POWR????",
