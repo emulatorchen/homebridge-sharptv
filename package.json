@@ -7,15 +7,18 @@
     "homebridge-plugin"
   ],
   "engines": {
-    "node": ">=0.12.0",
-    "homebridge": ">=0.2.0"
+    "node": ">=18.15.0",
+    "homebridge": ">=1.11.2"
+  },
+  "peerDependencies": {
+    "homebridge": ">=1.11.2"
   },
   "author": {
-    "name": "Emulator"
+    "name": "emulatorchen"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/reecedantin/homebridge-sharptv.git"
+    "url": "git://github.com/emulatorchen/homebridge-sharptv.git"
   },
   "scripts": {
     "test-one": "mocha $1",
