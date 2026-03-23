@@ -1,161 +1,130 @@
-var Service;
-var Characteristic;
+'use strict';
 
-var net = require('net');
+const net = require('net');
+const SOCKET_TIME_OUT = 3000;
+const PASSWORD_PREFIX = "Password:\r\n";
+
+let Service;
+let Characteristic;
+
 module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   homebridge.registerAccessory("SharpTV", SharpTVAccessory);
-  return SharpTVAccessory;//A trick for test purpose as we don't want to expose the class
-}
+  return SharpTVAccessory;
+};
 
-const SOCKET_TIME_OUT = 3*1000;
 class SharpTVAccessory {
   constructor(log, config) {
     this.log = log;
-    this.service = 'Switch';
+    this.name = config['name'] || 'SharpTV';
     this.userName = config['username'];
     this.password = config['password'];
-    this.name = config['name'] || SharpTV;
     this.onCommand = config['on'];
     this.offCommand = config['off'];
     this.stateCommand = config['state'];
-    this.onValue = config['on_value'];
-    this.onValue = this.onValue.trim();
-    this.exactMatch = config['exact_match'] && true;
+    this.onValue = config['on_value'].trim();
+    this.exactMatch = !!config['exact_match'];
     this.host = config['host'];
     this.port = config['port'];
-    this.state = null; //value for passing through get/set state
-    this.accessory = this;
   }
+
   matchesString(match) {
-    if (this.exactMatch) {
-      this.log('exactMatchResult:' + (match === this.onValue));
-      return (match === this.onValue);
-    }
-    else {
-      this.log('NonExactMatchResult:('+this.onValue+','+match+')' + (this.onValue.indexOf(match) > -1));
-      return (this.onValue.indexOf(match) > -1);
-    }
+    const result = this.exactMatch
+      ? match === this.onValue
+      : this.onValue.indexOf(match) > -1;
+    this.log(`matchResult(exact=${this.exactMatch}): ${result}`);
+    return result;
   }
+
   async setState(powerOn) {
-    this.state = powerOn ? 'on' : 'off';
-    var command = this.accessory[this.state + 'Command'];
-    this.accessory.log('Going setState' + command);
+    const command = powerOn ? this.onCommand : this.offCommand;
+    this.log('Going setState ' + command);
     await this.sendCommand(command);
   }
+
   getState() {
-    var command = this.accessory['stateCommand'];
-    return this.sendCommand(command);
+    return this.sendCommand(this.stateCommand);
   }
+
   sendCommand(command) {
     return new Promise((resolve) => {
       const conn = new net.Socket();
       const self = this;
       let done = false;
       let localState = "0";
+
       function finish(value) {
-        if (!done) {
-          done = true;
-          resolve(value);
-        }
+        if (!done) { done = true; resolve(value); }
       }
-      command = this.userName + "\r" + this.password + "\r" + command;
-      conn.setTimeout(SOCKET_TIME_OUT, function () {
-        self.accessory.log('TVConnection connecting to ' + self.host + ':' + self.port + "  timedout");
+
+      const fullCommand = `${this.userName}\r${this.password}\r${command}`;
+
+      conn.setTimeout(SOCKET_TIME_OUT, function() {
+        self.log(`TVConnection to ${self.host}:${self.port} timed out`);
         this.error = "timedout";
         this.destroy();
         finish(false);
       });
 
-      conn.connect(this.port, this.host, function () {
-        self.accessory.log('Send command(local-' + conn.localPort +'):' + command);
-        this.write(command + '\r');
+      conn.connect(this.port, this.host, function() {
+        self.log(`Send command(local-${conn.localPort}): ${fullCommand}`);
+        this.write(fullCommand + '\r');
       });
 
-      conn.on('data', function (data) {
-        var input = data.toString('utf-8').trim();
-        self.accessory.log('Response result:"' + input + '"');
-        if (input !== "ERR") {
-          const PASSWORD_STR = "Password:\r\n";
-          if (input === "") {
-            self.accessory.log('Ignore empty response');
-          }
-          else if ("0123456789OK".includes(input[0])) {
-            localState = "123456789OK".includes(input[0]) ? "1" : "0";
-            this.end();
-          } else if (input.startsWith(PASSWORD_STR)) {
-            let res = input.substring(PASSWORD_STR.length).trim();
-            switch (res) {
-              case "0":
-                  self.accessory.log('GetState set State 0 By P1q$');
-                  localState = "0";
-                  conn.end();
-                  self.accessory.log('Destroy socket');
-                  break;
-              case "1":
-              case "2":
-              case "3":
-              case "4":
-              case "5":
-              case "6":
-              case "7":
-              case "8":
-              case "9":
-              case "OK":
-                self.accessory.log('GetState set State 1 By P1q$');
-                localState = "1";
-                conn.end();
-                self.accessory.log('Destroy socket');
-                break;
-              case "ERR":
-                self.accessory.log('Received error code:'+res);
-                conn.end();
-                break;
-              default:
-                self.accessory.log("GetPasswordStateNonMatch:'"+res+"'");
-            }
-          }
-          else {
-            self.accessory.log('Ignore unrecognised response:' + input);
-          }
+      conn.on('data', function(data) {
+        const input = data.toString('utf-8').trim();
+        self.log(`Response: "${input}"`);
+        if (!input) return;
+
+        const res = input.startsWith(PASSWORD_PREFIX)
+          ? input.substring(PASSWORD_PREFIX.length).trim()
+          : input;
+
+        if (res === 'ERR') {
+          self.log('Received ERR');
+          this.end();
+        } else if ("0123456789OK".includes(res[0])) {
+          localState = "123456789OK".includes(res[0]) ? "1" : "0";
+          this.end();
+        } else {
+          self.log(`Unrecognised response: '${res}'`);
         }
       });
 
-      conn.on('end', ()=> {
-        self.accessory.log('TVConnection end:' + localState);
+      conn.on('end', () => {
+        self.log('TVConnection end: ' + localState);
         conn.destroy();
-      })
+      });
 
-      conn.on('close', function () {
+      conn.on('close', function() {
         this.destroy();
         if (!this.error) {
-          self.accessory.log('TVConnection Close:' + localState);
-          finish(self.accessory.matchesString(localState));
+          self.log('TVConnection close: ' + localState);
+          finish(self.matchesString(localState));
         }
       });
 
-      conn.on('error', function (err) {
-        self.accessory.log('TVConnection Error: ' + err);
+      conn.on('error', function(err) {
+        self.log('TVConnection error: ' + err);
         this.error = err;
         this.destroy();
         finish(false);
       });
     });
   }
-  getServices() {
-    var informationService = new Service.AccessoryInformation();
-    var switchService = new Service.Switch(this.name);
 
-    informationService
+  getServices() {
+    const infoService = new Service.AccessoryInformation()
       .setCharacteristic(Characteristic.Manufacturer, 'Sharp')
       .setCharacteristic(Characteristic.Model, 'SharpTV')
       .setCharacteristic(Characteristic.SerialNumber, 'Serial Number');
 
+    const switchService = new Service.Switch(this.name);
     switchService.getCharacteristic(Characteristic.On)
       .onSet(this.setState.bind(this))
       .onGet(this.getState.bind(this));
 
-    return [informationService, switchService];
+    return [infoService, switchService];
   }
 }
