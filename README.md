@@ -1,9 +1,9 @@
-# homebridge-sharptv
-Homebridge Plugin for SHarp TV's by using TCP/IP (Not RS232 version).
+# homebridge-sharptv-tcp
+Homebridge plugin for Sharp TVs via TCP/IP.
 
-The reason I update this plugin is because most of the plugins supported SharpTV either useless(never tested) or not supported by my model.
+> **Based on** [reecedantin/homebridge-sharptv](https://github.com/reecedantin/homebridge-sharptv) — forked and rewritten to use TCP/IP instead of RS232/IR, with fixes for connection handling and models not covered by the original.
 
-RS232( or IR control) can do more than TCP commands. But I would like to use TCP for stable controls.
+RS232 and IR can do more than TCP commands, but TCP provides stable control without additional hardware.
 
 ---
 
