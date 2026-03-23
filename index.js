@@ -30,16 +30,14 @@ class SharpTVAccessory {
   }
 
   matchesString(match) {
-    const result = this.exactMatch
+    return this.exactMatch
       ? match === this.onValue
       : this.onValue.indexOf(match) > -1;
-    this.log(`matchResult(exact=${this.exactMatch}): ${result}`);
-    return result;
   }
 
   async setState(powerOn) {
     const command = powerOn ? this.onCommand : this.offCommand;
-    this.log('Going setState ' + command);
+    this.log(`[${this.name}] setState: ${powerOn ? 'on' : 'off'} (${command})`);
     await this.sendCommand(command);
   }
 
@@ -61,20 +59,19 @@ class SharpTVAccessory {
       const fullCommand = `${this.userName}\r${this.password}\r${command}`;
 
       conn.setTimeout(SOCKET_TIME_OUT, function() {
-        self.log(`TVConnection to ${self.host}:${self.port} timed out`);
+        self.log(`[${self.name}] ${self.host}:${self.port} timed out`);
         this.error = "timedout";
         this.destroy();
         finish(false);
       });
 
       conn.connect(this.port, this.host, function() {
-        self.log(`Send command(local-${conn.localPort}): ${fullCommand}`);
+        self.log(`[${self.name}] send: ${command}`);
         this.write(fullCommand + '\r');
       });
 
       conn.on('data', function(data) {
         const input = data.toString('utf-8').trim();
-        self.log(`Response: "${input}"`);
         if (!input) return;
 
         const res = input.startsWith(PASSWORD_PREFIX)
@@ -82,31 +79,29 @@ class SharpTVAccessory {
           : input;
 
         if (res === 'ERR') {
-          self.log('Received ERR');
+          self.log(`[${self.name}] received ERR`);
           this.end();
         } else if ("0123456789OK".includes(res[0])) {
           localState = "123456789OK".includes(res[0]) ? "1" : "0";
           this.end();
         } else {
-          self.log(`Unrecognised response: '${res}'`);
+          self.log(`[${self.name}] unrecognised response: '${res}'`);
         }
       });
 
-      conn.on('end', () => {
-        self.log('TVConnection end: ' + localState);
-        conn.destroy();
-      });
+      conn.on('end', () => { conn.destroy(); });
 
       conn.on('close', function() {
         this.destroy();
         if (!this.error) {
-          self.log('TVConnection close: ' + localState);
-          finish(self.matchesString(localState));
+          const result = self.matchesString(localState);
+          self.log(`[${self.name}] state: ${result ? 'on' : 'off'}`);
+          finish(result);
         }
       });
 
       conn.on('error', function(err) {
-        self.log('TVConnection error: ' + err);
+        self.log(`[${self.name}] connection error: ${err}`);
         this.error = err;
         this.destroy();
         finish(false);
