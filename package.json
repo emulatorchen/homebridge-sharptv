@@ -18,6 +18,9 @@
     "node": ">=18.15.0",
     "homebridge": ">=1.11.2"
   },
+  "dependencies": {
+    "mqtt": "^5"
+  },
   "peerDependencies": {
     "homebridge": ">=1.11.2"
   },
@@ -35,7 +38,8 @@
   },
   "scripts": {
     "test-one": "mocha $1",
-    "test": "mocha -R list ./test/**/test*.js"
+    "test": "mocha -R list './test/test*.js'",
+    "integration": "mocha -R spec ./test/integration.js"
   },
   "devDependencies": {
     "chai": "4",

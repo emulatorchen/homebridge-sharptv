@@ -1,8 +1,10 @@
 'use strict';
 
-const net = require('net');
-const SOCKET_TIME_OUT = 3000;
-const PASSWORD_PREFIX = "Password:\r\n";
+const net  = require('net');
+const mqtt = require('mqtt');
+
+const SOCKET_TIME_OUT  = 3000;
+const PASSWORD_PREFIX  = "Password:\r\n";
 
 let Service;
 let Characteristic;
@@ -16,17 +18,71 @@ module.exports = function(homebridge) {
 
 class SharpTVAccessory {
   constructor(log, config) {
-    this.log = log;
-    this.name = config['name'] || 'SharpTV';
-    this.userName = config['username'];
-    this.password = config['password'];
-    this.onCommand = config['on'];
-    this.offCommand = config['off'];
+    this.log          = log;
+    this.name         = config['name'] || 'SharpTV';
+    this.userName     = config['username'];
+    this.password     = config['password'];
+    this.onCommand    = config['on'];
+    this.offCommand   = config['off'];
     this.stateCommand = config['state'];
-    this.onValue = config['on_value'].trim();
-    this.exactMatch = !!config['exact_match'];
-    this.host = config['host'];
-    this.port = config['port'];
+    this.onValue      = config['on_value'].trim();
+    this.exactMatch   = !!config['exact_match'];
+    this.host         = config['host'];
+    this.port         = config['port'];
+
+    this._initMqtt(config);
+  }
+
+  _initMqtt(config) {
+    if (!config['mqtt_broker'] || !config['mqtt_topic']) return;
+
+    this.mqttTopic = config['mqtt_topic'];
+
+    this.mqttClient = mqtt.connect(config['mqtt_broker'], {
+      will: {
+        topic:   `${this.mqttTopic}/availability`,
+        payload: JSON.stringify({ value: 'offline', ts: Math.floor(Date.now() / 1000) }),
+        retain:  true,
+        qos:     1
+      }
+    });
+
+    this.mqttClient.on('connect',   () => {
+      this.mqttClient.subscribe(`${this.mqttTopic}/set`);
+      this._publishMqtt('availability', 'online');
+    });
+
+    this.mqttClient.on('reconnect', () => this._publishMqtt('availability', 'online'));
+
+    this.mqttClient.on('error', (err) => {
+      this.log(`[${this.name}] MQTT error: ${err.message}`);
+    });
+
+    this.mqttClient.on('message', (topic, message) => {
+      if (topic !== `${this.mqttTopic}/set`) return;
+
+      let payload;
+      try { payload = JSON.parse(message.toString()); } catch (e) {
+        this.log(`[${this.name}] MQTT /set invalid JSON`);
+        return;
+      }
+
+      if (!payload || typeof payload.value !== 'string') return;
+
+      const val = payload.value.toUpperCase();
+      if      (val === 'ON')  this.setState(true);
+      else if (val === 'OFF') this.setState(false);
+      else this.log(`[${this.name}] MQTT /set unknown value: ${payload.value}`);
+    });
+  }
+
+  _publishMqtt(channel, value) {
+    if (!this.mqttClient) return;
+    this.mqttClient.publish(
+      `${this.mqttTopic}/${channel}`,
+      JSON.stringify({ value, ts: Math.floor(Date.now() / 1000) }),
+      { retain: true, qos: 1 }
+    );
   }
 
   matchesString(match) {
@@ -39,10 +95,13 @@ class SharpTVAccessory {
     const command = powerOn ? this.onCommand : this.offCommand;
     this.log(`[${this.name}] setState: ${powerOn ? 'on' : 'off'} (${command})`);
     await this.sendCommand(command);
+    this._publishMqtt('state', powerOn ? 'ON' : 'OFF');
   }
 
-  getState() {
-    return this.sendCommand(this.stateCommand);
+  async getState() {
+    const result = await this.sendCommand(this.stateCommand);
+    this._publishMqtt('state', result ? 'ON' : 'OFF');
+    return result;
   }
 
   sendCommand(command) {
