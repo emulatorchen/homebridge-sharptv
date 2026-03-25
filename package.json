@@ -1,6 +1,6 @@
 {
   "name": "homebridge-sharptv-tcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Homebridge plugin for Sharp TVs via TCP/IP",
   "license": "ISC",
   "main": "index.js",
@@ -21,12 +21,17 @@
   "peerDependencies": {
     "homebridge": ">=1.11.2"
   },
+  "displayName": "Sharp TV TCP",
   "author": {
     "name": "emulatorchen"
   },
+  "bugs": {
+    "url": "https://github.com/emulatorchen/homebridge-sharptv/issues"
+  },
+  "homepage": "https://github.com/emulatorchen/homebridge-sharptv#readme",
   "repository": {
     "type": "git",
-    "url": "git://github.com/emulatorchen/homebridge-sharptv.git"
+    "url": "git+https://github.com/emulatorchen/homebridge-sharptv.git"
   },
   "scripts": {
     "test-one": "mocha $1",
