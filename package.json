@@ -39,7 +39,8 @@
   "scripts": {
     "test-one": "mocha $1",
     "test": "mocha -R list './test/test*.js'",
-    "integration": "mocha -R spec ./test/integration.js"
+    "integration": "mocha -R spec ./test/integration.js",
+    "norm-lock": "npm install --registry https://registry.npmjs.org"
   },
   "devDependencies": {
     "chai": "4",
