@@ -13,3 +13,4 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm test
+        if: hashFiles('test/test*.js') != ''
