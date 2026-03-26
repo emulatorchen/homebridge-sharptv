@@ -1,10 +1,27 @@
 # homebridge-sharptv-tcp
 
-Homebridge plugin for Sharp TVs. Exposes the TV as a HomeKit Switch accessory via a direct TCP connection — no cloud, no IR blaster.
-
-MQTT support is optional. When configured, the plugin publishes state changes and availability to an MQTT broker, making the TV reachable from Home Assistant, Node-RED, or any other MQTT-aware system in parallel with HomeKit.
+Homebridge plugin for Sharp TVs via TCP/IP.
 
 Based on [reecedantin/homebridge-sharptv](https://github.com/reecedantin/homebridge-sharptv), rewritten to use TCP/IP instead of RS232/IR.
+
+RS232 and IR can do more than TCP commands, but TCP provides stable control without additional hardware.
+
+---
+
+## Features
+
+- Custom command and statusParam
+- Support all Sharp TV that is accept TCP command
+- Bugfix for TCP connection does not close properly
+- Optional MQTT side-channel — publish state to Home Assistant, Node-RED, or any MQTT-aware system without replacing the HomeKit integration
+
+As it's still pretty far to have a fully support by using DyanmicPlatform, this plugin is aimed to support TV control by presenting a switch On/Off.
+
+You can customize the On/Off switch to have multiple switches work together.
+
+For example, you can have second switch named "PS5" and says **on value** to switch to input 6 and off presents input 5. So you can actually switch to input 6 by telling Siri to turn on PS5.
+
+---
 
 ## Installation
 
@@ -50,7 +67,7 @@ Add an accessory entry to your Homebridge `config.json`:
 
 ### Optional MQTT fields
 
-Omit all four fields to run in TCP-only mode. Add them all to enable the MQTT side-channel.
+Omit all four fields to run in TCP-only mode — existing setups are unaffected. Add them all to enable the MQTT side-channel.
 
 | Field | Description |
 |---|---|
@@ -87,18 +104,16 @@ switch:
     payload_not_available: "offline"
 ```
 
-## Multi-switch example
+---
 
-A single TV can have multiple switches with different commands. For example, a "PS5" switch that sets the TV input:
+## Known limitation
+- Maximum 15 switches to the same TV
 
-```json
-[
-  { "accessory": "SharpTV", "name": "TV",  "on": "POWR1   ", "off": "POWR0   ", ... },
-  { "accessory": "SharpTV", "name": "PS5", "on": "IAVD0006", "off": "IAVD0005", ... }
-]
-```
+As my TV is pretty old(No android builtin), the maximum concurrent TCP connections accpeted by Sharp TV is around 15. And the homebrige will create 1 TCP connections for each switch. So the maximum amount of same switch will be approximately 15.
 
-## Known limits
+If you find that Siri complains there's no response from the device, you can check the connections established to the same TV may already exceed. Reduce switch amount and restart homebridge will solve the issue.
 
-- Sharp TVs accept approximately 15 concurrent TCP connections. Each switch holds one slot — do not configure more than ~15 switches per TV.
-- Tested on LC-52Z5T.
+---
+
+## Models tested:
+- LC-52Z5T
