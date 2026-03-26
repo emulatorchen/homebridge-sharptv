@@ -39,6 +39,8 @@ class SharpTVAccessory {
     this.mqttTopic = config['mqtt_topic'];
 
     this.mqttClient = mqtt.connect(config['mqtt_broker'], {
+      username: config['mqtt_username'],
+      password: config['mqtt_password'],
       will: {
         topic:   `${this.mqttTopic}/availability`,
         payload: JSON.stringify({ value: 'offline', ts: Math.floor(Date.now() / 1000) }),

@@ -118,6 +118,14 @@ describe('MQTT — connection', () => {
     expect(() => client.emit('error', new Error('connection refused'))).to.not.throw();
   });
 
+  it('passes mqtt_username and mqtt_password to connect options', () => {
+    const { mockMqtt, SharpTVAccessory } = setup();
+    new SharpTVAccessory(sinon.stub(), { ...mqttConfig, mqtt_username: 'u', mqtt_password: 'p' });
+    const opts = mockMqtt.connect.firstCall.args[1];
+    expect(opts.username).to.equal('u');
+    expect(opts.password).to.equal('p');
+  });
+
   it('does not log the broker URL', () => {
     const { client, SharpTVAccessory } = setup();
     const log = sinon.stub();

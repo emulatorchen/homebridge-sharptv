@@ -4,13 +4,13 @@
  * Integration test — requires a running Mosquitto broker.
  *
  * Configure via env vars (defaults match local_infra Mosquitto setup):
- *   MQTT_BROKER  mqtt://192.168.1.x:21883   (required — test skips if unset)
- *   MQTT_TOPIC   home/test/tv/sharp          (optional, defaults below)
- *   MQTT_USER    mqtt username               (optional)
- *   MQTT_PASS    mqtt password               (optional)
+ *   MQTT_BROKER  mqtt://emulator-ubuntu.local:21883   (required — test skips if unset)
+ *   MQTT_TOPIC   home/test/tv/sharp                  (optional, defaults below)
+ *   MQTT_USER    mqtt username                        (optional)
+ *   MQTT_PASS    mqtt password                        (optional)
  *
  * Run:
- *   MQTT_BROKER=mqtt://192.168.1.x:21883 MQTT_USER=xxx MQTT_PASS=xxx npm run integration
+ *   MQTT_BROKER=mqtt://emulator-ubuntu.local:21883 MQTT_USER=xxx MQTT_PASS=xxx npm run integration
  */
 
 const net    = require('net');
@@ -74,7 +74,8 @@ function waitForMessage(client, filterFn, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Timed out waiting for MQTT message')), timeoutMs);
     client.on('message', function handler(topic, msg) {
-      const parsed = JSON.parse(msg.toString());
+      let parsed;
+      try { parsed = JSON.parse(msg.toString()); } catch (e) { return; }
       if (filterFn(topic, parsed)) {
         clearTimeout(timer);
         client.removeListener('message', handler);
@@ -117,14 +118,13 @@ describe('Integration — MQTT + fake TV', function() {
     const available = waitForMessage(testClient,
       (t, p) => t === `${TOPIC}/availability` && p.value === 'online');
 
-    const mqttOpts = USER ? { username: USER, password: PASS } : {};
     const config = {
       name: 'Integration TV', username: 'admin', password: 'pass',
       on: 'POWR1   ', off: 'POWR0   ', state: 'POWR????',
       on_value: '1', exact_match: false,
       host: '127.0.0.1', port: tvPort,
       mqtt_broker: BROKER, mqtt_topic: TOPIC,
-      ...mqttOpts
+      mqtt_username: USER, mqtt_password: PASS
     };
     tv = new SharpTVAccessory(() => {}, config);
 
